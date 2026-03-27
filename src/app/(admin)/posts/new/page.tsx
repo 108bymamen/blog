@@ -2,14 +2,91 @@
 
 import {
   Bold, Italic, Underline, Heading1, Quote, List, Link as LinkIcon,
-  Image as ImageIcon, Save, Send, ChevronLeft, Menu, Check, Plus
+  Image as ImageIcon, Save, Send, ChevronLeft, Menu, Check, Plus, Loader2
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function NewPost() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [category, setCategory] = useState("Wellness");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const availableTags = ["Recetas", "Yoga", "Nutrición"];
+
+  const toggleTag = (tag: string) => {
+    setSelectedTags(prev => 
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+  };
+
+  const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `post-images/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('blog-images')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('blog-images').getPublicUrl(filePath);
+      setImageUrls(prev => [...prev, data.publicUrl]);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Error al subir la imagen');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!title || !content) {
+      alert("El título y el contenido son obligatorios");
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      
+      const { error } = await supabase
+        .from('posts')
+        .insert([{
+          title,
+          slug,
+          content,
+          category,
+          tags: selectedTags,
+          image_urls: imageUrls,
+          status: 'publicada'
+        }]);
+
+      if (error) throw error;
+      
+      alert('Entrada publicada exitosamente!');
+      router.push('/posts');
+    } catch (error) {
+      console.error('Error al publicar:', error);
+      alert('Hubo un error al publicar la entrada');
+    } finally {
+      setIsPublishing(false);
+    }
+  };
 
   return (
     <div className="bg-background-light font-body h-screen flex flex-col overflow-hidden antialiased selection:bg-primary/30">
@@ -61,11 +138,15 @@ export default function NewPost() {
           <div className="w-full overflow-x-auto no-scrollbar px-5 py-4 flex gap-2 items-center">
             <button className="flex h-10 shrink-0 items-center justify-center gap-x-1.5 rounded-full bg-primary/10 border border-primary/20 px-4 transition-all hover:bg-primary/20">
               <Check className="w-4 h-4 text-primary" />
-              <p className="text-primary text-[15px] font-bold leading-normal">Wellness</p>
+              <p className="text-primary text-[15px] font-bold leading-normal">{category}</p>
             </button>
-            {["Recetas", "Yoga", "Nutrición"].map((tag) => (
-              <button key={tag} className="flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full bg-gray-50 border border-transparent hover:border-gray-200 px-5 transition-all">
-                <p className="text-outline text-[15px] font-medium leading-normal">{tag}</p>
+            {availableTags.map((tag) => (
+              <button 
+                key={tag} 
+                onClick={() => toggleTag(tag)}
+                className={`flex h-10 shrink-0 items-center justify-center gap-x-2 rounded-full border px-5 transition-all ${selectedTags.includes(tag) ? 'bg-primary/10 border-primary text-primary' : 'bg-gray-50 border-transparent hover:border-gray-200 text-outline'}`}
+              >
+                <p className="text-[15px] font-medium leading-normal">{tag}</p>
               </button>
             ))}
             <button className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white border border-dashed border-gray-300 text-outline hover:text-primary hover:border-primary transition-colors">
@@ -73,13 +154,22 @@ export default function NewPost() {
             </button>
           </div>
         </div>
-        <div className="flex-1 px-5 py-2 min-h-[40vh] relative group cursor-text">
+        <div className="flex-1 px-5 py-2 min-h-[40vh] relative group cursor-text flex flex-col pt-4">
           <textarea
-            className="w-full h-full resize-none bg-transparent border-none p-0 text-[18px] leading-[1.6] text-on-surface placeholder:text-gray-300 focus:ring-0 font-normal caret-primary"
+            className="w-full flex-1 resize-none bg-transparent border-none p-0 text-[18px] leading-[1.6] text-on-surface placeholder:text-gray-300 focus:ring-0 font-normal caret-primary"
             placeholder="Empieza a escribir tu historia aquí..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
           ></textarea>
+          
+          {/* Display uploaded images previews */}
+          {imageUrls.length > 0 && (
+            <div className="flex gap-2 pb-4 overflow-x-auto mt-4">
+              {imageUrls.map((url, i) => (
+                <img key={i} src={url} alt="uploaded" className="h-24 w-24 object-cover rounded-lg border border-gray-200" />
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
@@ -93,15 +183,31 @@ export default function NewPost() {
           ))}
         </div>
         <div className="px-5 py-4 flex items-center justify-between gap-4">
-          <button className="group flex items-center justify-center size-12 rounded-xl bg-gray-50 border border-gray-100 hover:border-primary/50 transition-all">
-            <ImageIcon className="text-outline group-hover:text-primary transition-colors w-6 h-6" />
+          <input 
+            type="file" 
+            accept="image/*" 
+            className="hidden" 
+            ref={fileInputRef} 
+            onChange={uploadImage} 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="group flex items-center justify-center size-12 rounded-xl bg-gray-50 border border-gray-100 hover:border-primary/50 transition-all disabled:opacity-50"
+          >
+            {isUploading ? <Loader2 className="w-6 h-6 animate-spin text-primary" /> : <ImageIcon className="text-outline group-hover:text-primary transition-colors w-6 h-6" />}
           </button>
           <div className="flex items-center gap-3 flex-1 justify-end">
             <button className="px-6 h-12 rounded-xl border border-gray-200 text-outline font-bold text-[16px] hover:bg-gray-50 transition-colors">
               Guardar
             </button>
-            <button className="px-8 h-12 rounded-xl bg-brand-turquoise hover:bg-brand-turquoise/80 text-white font-bold text-[16px] shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
-              Publicar
+            <button 
+              onClick={handlePublish}
+              disabled={isPublishing}
+              className="flex items-center gap-2 px-8 h-12 rounded-xl bg-brand-turquoise hover:bg-brand-turquoise/80 text-white font-bold text-[16px] shadow-lg shadow-primary/20 transition-all active:scale-[0.98] disabled:opacity-70"
+            >
+              {isPublishing ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
+              {isPublishing ? 'Publicando...' : 'Publicar'}
             </button>
           </div>
         </div>
@@ -109,3 +215,4 @@ export default function NewPost() {
     </div>
   );
 }
+
