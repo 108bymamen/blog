@@ -89,7 +89,7 @@ export default function NewPost() {
   };
 
   return (
-    <div className="bg-background-light font-body h-screen flex flex-col overflow-hidden antialiased selection:bg-primary/30">
+    <div className="bg-surface font-body h-screen flex flex-col overflow-hidden antialiased selection:bg-primary/30">
       {/* Corporate Header */}
       <header className="bg-brand-turquoise shrink-0 z-20">
         <div className="flex items-center justify-between px-4 py-4 relative">

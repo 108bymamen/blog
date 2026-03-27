@@ -9,8 +9,8 @@ export default function Navbar() {
           <Link href="/" className="block">
             <img
               alt="108 by Mamen Logo"
-              className="h-24 w-auto object-contain"
-              src="https://lh3.googleusercontent.com/aida/ADBb0ujdytC9wcRO5AHC1-fnvYUnMLMUjrROtXHUnMZ-dVZU9w6cF3lY2INYzzNuQEhCNuVWX89Tn3LbVMXaI88Lk0eKWigM1DQOlQEBIlWnjeuFNzin6P2py6JgbNa8sTtt4Lme60Z3QEdfUuYDkS6QXnZFc46H_7qw5iHCNRDVtdMeDunFWP9gdumAfH03rImIOlGSAv5uoBH17ix_y9BU4r47cwrO1CLhOD1DbcMrQRveGDXvCw2ebX8e6Pb7d9Craw4iu2UmIRCWpA"
+              className="h-28 w-auto object-contain"
+              src="/logo.png"
             />
           </Link>
           <nav className="flex items-center gap-8">
